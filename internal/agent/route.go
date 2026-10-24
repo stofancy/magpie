@@ -231,7 +231,20 @@ func magpieModels(agent string) []catalog.Model {
 		// GPT group's tool-call arguments stream as the member sends them
 		// instead of being held for a Chat answer
 		if e.Group == "" {
-			if n := e.Provider.Native(e.Model); n != "" {
+			switch n := e.Provider.Native(e.Model); n {
+			case provider.Anthropic:
+				m.APIs = []string{string(n)}
+			case "":
+				// a Claude model the gateway asks on Messages whatever the
+				// client spoke (OnMessages), a Claude Code subscription's
+				// among them — its requests run through the Claude Code
+				// bridge, which speaks Messages — is best asked there too:
+				// on Chat its thinking signatures and cache_control are
+				// lost between turns, as MessagesFirst's are (#997)
+				if e.Provider.MessagesFirst(e.Model) {
+					m.APIs = []string{string(provider.Anthropic)}
+				}
+			default:
 				m.APIs = []string{string(n)}
 			}
 		} else if allResponses(members(e.ID)) {
